@@ -4,5 +4,6 @@ dist/
 coverage/
 .DS_Store
 *.log
+patients_db.json
 .env*
 !.env.example
