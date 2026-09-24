@@ -60,43 +60,12 @@ interface Patient {
   attentionHighScore?: number;
 }
 
-// Default high-fidelity clinical/school demonstration profiles
-const DEFAULT_PATIENTS: Patient[] = [
-  {
-    id: 'mateo',
-    name: 'Mateo (TEA Grado 1)',
-    avatar: '👦',
-    selectedAge: '6-8',
-    stars: 48,
-    unlockedAchievements: ['Explorador de Calma', 'Primer Paso Emocional', 'Comunicación Estelar'],
-    completedRoutineTasks: ['lavarse', 'dientes_noche'],
-    emotionJournal: [
-      { date: '30/06/2026, 11:30', emotion: '😊 Feliz', note: 'Mateo completó su rutina matutina de forma independiente por primera vez hoy.' },
-      { date: '29/06/2026, 16:45', emotion: '😠 Enojado', note: 'Se frustró levemente al transicionar de la tableta a la cena, pero usó el temporizador visual y se calmó.' }
-    ],
-    customPictogramImages: {},
-    customPictogramVoices: {},
-    therapeuticObjective: 'Incrementar autonomía en la rutina matutina y reducir ansiedad en transiciones de actividad.',
-    attentionHighScore: 18
-  },
-  {
-    id: 'sofia',
-    name: 'Sofía (Sensorial / TDAH)',
-    avatar: '👧',
-    selectedAge: '9-10',
-    stars: 72,
-    unlockedAchievements: ['Guardián de Rutinas', 'Mente Enfocada', 'Diario Estelar'],
-    completedRoutineTasks: ['tareas', 'bano', 'ordenar'],
-    emotionJournal: [
-      { date: '30/06/2026, 13:15', emotion: '😊 Bien', note: 'Excelente tolerancia al ruido durante el recreo usando sus auriculares canceladores de ruido.' },
-      { date: '28/06/2026, 09:00', emotion: '😰 Asustado', note: 'Sobrecarga sensorial por sirena de ambulancia. Realizó 3 ciclos de respiración guiada.' }
-    ],
-    customPictogramImages: {},
-    customPictogramVoices: {},
-    therapeuticObjective: 'Mejorar concentración sostenida y autogestión de crisis por sobrecarga auditiva.',
-    attentionHighScore: 24
-  }
-];
+// Neutral fallback while a new profile is being created.
+const EMPTY_PROFILE: Patient = {
+  id: 'preview', name: 'Explorador', avatar: '⭐', selectedAge: '6-8',
+  stars: 0, unlockedAchievements: [], completedRoutineTasks: [],
+  emotionJournal: [], customPictogramImages: {}, customPictogramVoices: {}
+};
 
 // Unified & Proprietary Pictograms Database (Rediseñado con Código de Color Fitzgerald para TEA/TDAH y compatible con AsTeRICS OBF)
 const ALL_DEFAULT_PICTOGRAMS = [
@@ -135,18 +104,18 @@ export default function ImportedApp() {
   const [patients, setPatients] = useState<Patient[]>(() => {
     try {
       const saved = localStorage.getItem('np_patients');
-      return saved ? JSON.parse(saved) : DEFAULT_PATIENTS;
+      return saved ? JSON.parse(saved) : [];
     } catch (e) {
-      return DEFAULT_PATIENTS;
+      return [];
     }
   });
 
   const [activePatientId, setActivePatientId] = useState<string>(() => {
     try {
       const saved = localStorage.getItem('np_active_patient_id');
-      return saved || 'mateo';
+      return saved || '';
     } catch (e) {
-      return 'mateo';
+      return '';
     }
   });
 
@@ -163,31 +132,21 @@ export default function ImportedApp() {
   const [appDeviceMode, setAppDeviceMode] = useState<'movil' | 'tablet'>(() => {
     try {
       const saved = localStorage.getItem('np_app_device_mode');
-      return (saved as 'movil' | 'tablet') || 'tablet'; // Default to tablet
+      return saved === 'tablet' ? 'tablet' : 'movil';
     } catch (e) {
-      return 'tablet';
+      return 'movil';
     }
   });
 
   // Onboarding wizard input states
   const [onboardingChildName, setOnboardingChildName] = useState<string>('');
   const [onboardingAgeRange, setOnboardingAgeRange] = useState<string>('6-8');
-  const [onboardingDeviceMode, setOnboardingDeviceMode] = useState<'movil' | 'tablet'>('tablet');
+  const [onboardingDeviceMode, setOnboardingDeviceMode] = useState<'movil' | 'tablet'>('movil');
   const [onboardingGender, setOnboardingGender] = useState<'niño' | 'niña' | 'estelar'>('niño');
   const [onboardingStep, setOnboardingStep] = useState<number>(1);
 
   // Clinician dashboard tab selection
-  const [parentsActiveTab, setParentsActiveTab] = useState<'pacientes' | 'pictogramas' | 'sonido' | 'reportes' | 'nube' | 'clientes'>('pacientes');
-
-  // Client link generator states
-  const [clientName, setClientName] = useState<string>('Mateo');
-  const [clientAge, setClientAge] = useState<string>('6-8');
-  const [clientFocus, setClientFocus] = useState<string>('Entrenamiento de Atención y Rutinas');
-  const [clientWelcomeMsg, setClientWelcomeMsg] = useState<string>(
-    '¡Hola! Te invito a probar NeuroPlanet, una interfaz estelar diseñada especialmente para apoyar el desarrollo cognitivo y la autorregulación. He configurado este recorrido interactivo a medida para probar las actividades.'
-  );
-  const [copyLinkSuccess, setCopyLinkSuccess] = useState<boolean>(false);
-  const [copyMessageSuccess, setCopyMessageSuccess] = useState<boolean>(false);
+  const [parentsActiveTab, setParentsActiveTab] = useState<'pacientes' | 'pictogramas' | 'sonido' | 'reportes'>('pacientes');
 
   // Client demo mode states
   const [clientDemoMessage, setClientDemoMessage] = useState<string>('');
@@ -203,13 +162,6 @@ export default function ImportedApp() {
   const [pictogramSearchQuery, setPictogramSearchQuery] = useState<string>('');
   const [parentsPicSearchQuery, setParentsPicSearchQuery] = useState<string>('');
   const [parentsPicCategoryFilter, setParentsPicCategoryFilter] = useState<'all' | 'necesidades' | 'emociones' | 'acciones' | 'objetos'>('all');
-
-  // Cloud sync states
-  const [cloudSyncStatus, setCloudSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
-  const [cloudSyncLogs, setCloudSyncLogs] = useState<string[]>(['Servidor clínico conectado.', 'Listo para sincronizar.']);
-  const [cloudLastSynced, setCloudLastSynced] = useState<string>(() => {
-    return localStorage.getItem('np_cloud_last_synced') || 'Nunca';
-  });
 
   // App Navigation States
   const [currentTab, setCurrentTab] = useState<'inicio' | 'logros'>('inicio');
@@ -306,7 +258,7 @@ export default function ImportedApp() {
   const [breathingCycles, setBreathingCycles] = useState<number>(0);
   
   // Active patient profile helper
-  const activePatient = patients.find(p => p.id === activePatientId) || patients[0] || DEFAULT_PATIENTS[0];
+  const activePatient = patients.find(p => p.id === activePatientId) || patients[0] || EMPTY_PROFILE;
 
   // --- Check for Client Direct Access Parameters (e.g. ?demo=true&client=Mateo&age=6-8&focus=Atencion&msg=...) ---
   useEffect(() => {
@@ -363,9 +315,13 @@ export default function ImportedApp() {
     }
   }, []);
 
+  // Wait for profile hydration before saving. Otherwise switching profiles can
+  // overwrite the newly selected child's progress with the previous profile.
+  const [loadedPatientId, setLoadedPatientId] = useState<string | null>(null);
+
   // --- Sync individual states FROM active patient when activePatientId loads ---
   useEffect(() => {
-    if (activePatient) {
+    if (activePatient && activePatientId) {
       setSelectedAge(activePatient.selectedAge);
       setStars(activePatient.stars);
       setUnlockedAchievements(activePatient.unlockedAchievements || []);
@@ -373,11 +329,13 @@ export default function ImportedApp() {
       setEmotionJournal(activePatient.emotionJournal || []);
       setCustomPictogramImages(activePatient.customPictogramImages || {});
       setCustomPictogramVoices(activePatient.customPictogramVoices || {});
+      setLoadedPatientId(activePatientId);
     }
   }, [activePatientId]);
 
   // --- Sync individual state updates TO patients array and localStorage ---
   useEffect(() => {
+    if (loadedPatientId !== activePatientId || !activePatientId) return;
     setPatients(prev => {
       const index = prev.findIndex(p => p.id === activePatientId);
       if (index === -1) return prev;
@@ -410,7 +368,7 @@ export default function ImportedApp() {
       localStorage.setItem('np_active_patient_id', activePatientId);
       return updatedPatients;
     });
-  }, [activePatientId, selectedAge, stars, unlockedAchievements, completedRoutineTasks, emotionJournal, customPictogramImages, customPictogramVoices]);
+  }, [activePatientId, loadedPatientId, selectedAge, stars, unlockedAchievements, completedRoutineTasks, emotionJournal, customPictogramImages, customPictogramVoices]);
 
   
   // Attention Game State
@@ -1038,7 +996,7 @@ export default function ImportedApp() {
               <div className="text-center">
                 <span className="text-4xl inline-block font-sans">👦</span>
                 <h2 className="text-lg font-extrabold text-white mt-2">Perfil del Pequeño Explorador</h2>
-                <p className="text-xs text-slate-400">Ingresa su nombre para personalizar todas las pantallas e interacciones.</p>
+                <p className="text-xs text-slate-400">Puedes usar un apodo. Los avances quedan en este navegador y no se sincronizan.</p>
               </div>
 
               <div className="border-t border-white/10 pt-4 space-y-4">
@@ -1223,19 +1181,19 @@ export default function ImportedApp() {
 
   // CORE APP RENDER
   return (
-    <div className="min-h-screen stitch-grid flex items-center justify-center p-2 sm:p-4 md:p-6 relative overflow-hidden">
+    <div className="min-h-dvh stitch-grid flex items-center justify-center p-0 sm:p-4 md:p-6 relative overflow-hidden">
       {/* Glowing atmospheric nebula */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 ambient-glow-violet rounded-full opacity-45"></div>
       <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] ambient-glow-cyan rounded-full opacity-35"></div>
       <div className="absolute top-1/3 right-1/3 w-72 h-72 ambient-glow-pink rounded-full opacity-30"></div>
 
-      <div id="neuroplaneta-workspace" className={`mx-auto bg-[#0B0F19]/95 min-h-[720px] max-h-[92vh] shadow-2xl relative flex flex-col justify-between overflow-hidden rounded-[32px] border border-white/10 text-slate-100 font-sans transition-all duration-300 backdrop-blur-xl ${appDeviceMode === 'tablet' ? 'max-w-4xl w-full' : 'max-w-md w-full'}`}>
+      <div id="neuroplaneta-workspace" className={`mx-auto bg-[#0B0F19]/95 h-dvh sm:h-[92vh] sm:min-h-[600px] shadow-2xl relative flex flex-col justify-between overflow-hidden rounded-none sm:rounded-[32px] border border-white/10 text-slate-100 font-sans transition-all duration-300 backdrop-blur-xl ${appDeviceMode === 'tablet' ? 'max-w-4xl w-full' : 'max-w-md w-full'}`}>
       
       {/* HEADER SECTION (Like the screenshot) */}
-      <header className="px-6 py-5 bg-[#03060E]/80 backdrop-blur-md border-b border-white/10 flex items-center justify-between shrink-0">
+      <header className="px-4 sm:px-6 py-3 sm:py-5 bg-[#03060E]/80 backdrop-blur-md border-b border-white/10 flex items-center justify-between shrink-0">
         <div>
           <div className="flex items-center gap-1.5">
-            <h1 className="text-xl font-extrabold tracking-tight text-white">Hola, {activePatient.name.split(' (')[0]}!</h1>
+            <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-white">Hola, {activePatient.name.split(' (')[0]}!</h1>
             <span className="animate-bounce text-sm">✨</span>
           </div>
           
@@ -1364,7 +1322,7 @@ export default function ImportedApp() {
       )}
 
       {/* CORE CONTENT SWITCHER */}
-      <main className="flex-1 p-5 overflow-y-auto pb-24">
+      <main className="flex-1 min-h-0 p-4 sm:p-5 overflow-y-auto pb-24">
         
         {currentTab === 'inicio' && !activeModule && (
           <div className="space-y-5 animate-fade-in">
@@ -2835,7 +2793,7 @@ export default function ImportedApp() {
                     <span className="text-2xl">🔒</span>
                     <h3 className="font-bold text-xs text-white mt-2">Control de Acceso Adulto</h3>
                     <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
-                      Por motivos de seguridad, resuelve esta operación matemática para acceder al panel administrativo.
+                      Resuelve esta operación para abrir la configuración en este dispositivo. Esta operación no protege datos confidenciales.
                     </p>
                   </div>
 
@@ -2858,26 +2816,9 @@ export default function ImportedApp() {
                       type="submit"
                       className="w-full bg-[#186EF3] hover:bg-blue-500 text-white font-extrabold text-xs py-3 rounded-xl transition-all shadow-lg active:scale-98 cursor-pointer"
                     >
-                      ✓ Verificar Identidad
+                      Abrir configuración
                     </button>
 
-                    <div className="relative flex py-2 items-center">
-                      <div className="flex-grow border-t border-white/5"></div>
-                      <span className="flex-shrink mx-3 text-[9px] text-slate-500 font-bold uppercase tracking-wider">Demostración Comercial</span>
-                      <div className="flex-grow border-t border-white/5"></div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        playClickSound();
-                        setParentsAuthenticated(true);
-                        setParentsActiveTab('clientes');
-                      }}
-                      className="w-full bg-[#10B981]/10 hover:bg-[#10B981]/15 border border-[#10B981]/20 text-[#10B981] font-extrabold text-xs py-3 rounded-xl transition-all active:scale-98 flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <span>🔗 Acceso Directo Clientes</span>
-                    </button>
                   </form>
                 </div>
               ) : (
@@ -2907,9 +2848,7 @@ export default function ImportedApp() {
                       { id: 'pacientes', label: '👥 Pacientes', desc: 'Clínica / Escuela' },
                       { id: 'pictogramas', label: '🎨 Pictogramas', desc: 'Biblioteca' },
                       { id: 'sonido', label: '🔊 Audio Sensorial', desc: 'Hipersensibilidad' },
-                      { id: 'reportes', label: '📋 Reportes PDF', desc: 'Evolutivo' },
-                      { id: 'clientes', label: '🔗 Acceso Clientes', desc: 'Marketing / Demo' },
-                      { id: 'nube', label: '☁️ Sincronización', desc: 'Nube Cloud' }
+                      { id: 'reportes', label: '📋 Reportes PDF', desc: 'Evolutivo' }
                     ].map(tab => (
                       <button
                         key={tab.id}
@@ -3685,268 +3624,6 @@ export default function ImportedApp() {
                       </div>
                     )}
 
-                    {/* TAB 4: REAL-TIME CLOUD DATABASE SYNCHRONIZATION */}
-                    {parentsActiveTab === 'nube' && (
-                      <div className="space-y-3">
-                        <h3 className="font-extrabold text-white text-xs">☁️ Sincronización en la Nube de Fotos y Voces</h3>
-                        <p className="text-[10px] text-slate-400 leading-relaxed">
-                          Sincroniza todos los perfiles de tus pacientes en el servidor de respaldo clínico de NeuroPlaneta de manera segura. Conserva registros de fotos familiares, voces y notas diagnósticas.
-                        </p>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {/* Connection details */}
-                          <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-900 space-y-2">
-                            <h4 className="font-extrabold text-white text-[11px] uppercase tracking-wider">Estado de Servidor</h4>
-                            
-                            <div className="space-y-1.5 text-[10px]">
-                              <div className="flex justify-between border-b border-slate-900 pb-1">
-                                <span className="text-slate-400">Canal:</span>
-                                <span className="text-emerald-400 font-extrabold flex items-center gap-1">
-                                  <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
-                                  ● En línea (Producción)
-                                </span>
-                              </div>
-                              <div className="flex justify-between border-b border-slate-900 pb-1">
-                                <span className="text-slate-400">Última Sincronización:</span>
-                                <span className="text-slate-300 font-bold">{cloudLastSynced}</span>
-                              </div>
-                              <div className="flex justify-between pb-1">
-                                <span className="text-slate-400">Clientes Conectados:</span>
-                                <span className="text-blue-400 font-bold">1 Nodo Local</span>
-                              </div>
-                            </div>
-
-                            <button
-                              onClick={async () => {
-                                setCloudSyncStatus('syncing');
-                                setCloudSyncLogs(prev => [...prev, `[INIT] Iniciando sincronización de base de datos...`]);
-                                try {
-                                  // 1. Guardar perfiles locales en el servidor
-                                  const saveRes = await fetch('/api/sync/save', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ patients })
-                                  });
-                                  
-                                  if (!saveRes.ok) throw new Error('Error al guardar datos en la nube');
-                                  
-                                  setCloudSyncLogs(prev => [...prev, `[UPLOAD] Perfiles locales enviados exitosamente.`]);
-
-                                  // 2. Cargar perfiles unificados desde el servidor
-                                  const loadRes = await fetch('/api/sync/load');
-                                  if (!loadRes.ok) throw new Error('Error al cargar datos unificados');
-                                  
-                                  const serverData = await loadRes.json();
-                                  if (serverData && Array.isArray(serverData.patients)) {
-                                    setPatients(serverData.patients);
-                                    localStorage.setItem('np_patients', JSON.stringify(serverData.patients));
-                                    setCloudSyncLogs(prev => [...prev, `[DOWNLOAD] Perfiles descargados e integrados: ${serverData.patients.length} pacientes.`]);
-                                  }
-                                  
-                                  const nowStr = new Date().toLocaleString('es-ES');
-                                  setCloudLastSynced(nowStr);
-                                  localStorage.setItem('np_cloud_last_synced', nowStr);
-                                  setCloudSyncStatus('success');
-                                  setCloudSyncLogs(prev => [...prev, `[SUCCESS] Sincronización completa a las ${nowStr}.`]);
-                                  playSuccessSound();
-                                } catch (err: any) {
-                                  console.error(err);
-                                  setCloudSyncStatus('error');
-                                  setCloudSyncLogs(prev => [...prev, `[ERROR] Fallo de red: ${err.message || 'Error desconocido'}`]);
-                                  setCloudSyncLogs(prev => [...prev, `[TIPS] Reintentando o revisando conexión del servidor.`]);
-                                }
-                              }}
-                              disabled={cloudSyncStatus === 'syncing'}
-                              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-40 text-white font-extrabold text-xs py-2 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md mt-2"
-                            >
-                              <RefreshCw className={`w-3.5 h-3.5 ${cloudSyncStatus === 'syncing' ? 'animate-spin' : ''}`} />
-                              <span>{cloudSyncStatus === 'syncing' ? 'Sincronizando...' : 'Sincronizar en la Nube'}</span>
-                            </button>
-                          </div>
-
-                          {/* Sync logs terminal */}
-                          <div className="bg-slate-950 p-3 rounded-2xl border border-slate-900 flex flex-col h-full justify-between">
-                            <span className="text-[8px] font-black uppercase text-slate-500 tracking-wider block mb-1">Registro de Transmisión</span>
-                            <div className="font-mono text-[8.5px] bg-[#090D16] p-2 rounded-lg text-slate-400 h-[100px] overflow-y-auto space-y-0.5 text-left border border-slate-900 shadow-inner">
-                              {cloudSyncLogs.map((log, index) => (
-                                <div key={index} className={
-                                  log.includes('[SUCCESS]') ? 'text-emerald-400 font-bold' :
-                                  log.includes('[ERROR]') ? 'text-rose-400 font-bold' : 'text-slate-300'
-                                }>
-                                  {log}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* TAB 5: CLIENT SHUTTLE AND DEMO SHORTCUT GENERATOR */}
-                    {parentsActiveTab === 'clientes' && (
-                      <div className="space-y-4 animate-fade-in text-left">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-extrabold text-white text-xs flex items-center gap-1">🔗 Generador de Accesos Directos para Clientes</h3>
-                          <span className="text-[9px] bg-blue-500/15 text-blue-400 font-extrabold px-2 py-0.5 rounded-full border border-blue-500/20">
-                            Marketing Clínico
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-slate-400 leading-relaxed">
-                          Crea enlaces de demostración personalizados para que posibles clientes (padres de pacientes) exploren la plataforma con los datos preconfigurados de su hijo/a. ¡Es la mejor forma de presentar tu servicio profesional!
-                        </p>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {/* Setup Form */}
-                          <div className="bg-slate-950 p-4 rounded-2xl border border-slate-900/80 space-y-3">
-                            <h4 className="font-extrabold text-white text-[10px] uppercase tracking-wider text-blue-400">1. Datos del Paciente / Demo</h4>
-                            
-                            <div className="space-y-2.5">
-                              <div>
-                                <label className="block text-[10px] text-slate-400 font-extrabold mb-1">Nombre del Niño / Niña</label>
-                                <input
-                                  type="text"
-                                  value={clientName}
-                                  onChange={(e) => {
-                                    setClientName(e.target.value);
-                                    setCopyLinkSuccess(false);
-                                    setCopyMessageSuccess(false);
-                                  }}
-                                  placeholder="Ej. Mateo, Sofía..."
-                                  className="w-full bg-[#090D16] border border-slate-800/80 rounded-xl py-2 px-3 text-xs text-white focus:outline-none focus:border-blue-500 font-semibold"
-                                />
-                              </div>
-
-                              <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                  <label className="block text-[10px] text-slate-400 font-extrabold mb-1">Rango de Edad</label>
-                                  <select
-                                    value={clientAge}
-                                    onChange={(e) => {
-                                      setClientAge(e.target.value);
-                                      setCopyLinkSuccess(false);
-                                      setCopyMessageSuccess(false);
-                                    }}
-                                    className="w-full bg-[#090D16] border border-slate-800/80 rounded-xl py-2 px-3 text-xs text-white focus:outline-none focus:border-blue-500 font-semibold cursor-pointer"
-                                  >
-                                    <option value="3-5">3 a 5 años</option>
-                                    <option value="6-8">6 a 8 años</option>
-                                    <option value="9-10">9 a 10 años</option>
-                                  </select>
-                                </div>
-                                <div>
-                                  <label className="block text-[10px] text-slate-400 font-extrabold mb-1">Foco de la Terapia</label>
-                                  <select
-                                    value={clientFocus}
-                                    onChange={(e) => {
-                                      setClientFocus(e.target.value);
-                                      setCopyLinkSuccess(false);
-                                      setCopyMessageSuccess(false);
-                                    }}
-                                    className="w-full bg-[#090D16] border border-slate-800/80 rounded-xl py-2 px-3 text-xs text-white focus:outline-none focus:border-blue-500 font-semibold cursor-pointer"
-                                  >
-                                    <option value="Atención y Concentración">Atención y Concentración</option>
-                                    <option value="Regulación de Emociones">Regulación de Emociones</option>
-                                    <option value="Autonomía en Rutinas">Autonomía en Rutinas</option>
-                                    <option value="Comunicación por Pictogramas">Comunicación por Pictogramas</option>
-                                    <option value="Regulación Sensorial">Regulación Sensorial</option>
-                                    <option value="Habilidades de Socialización">Habilidades de Socialización</option>
-                                  </select>
-                                </div>
-                              </div>
-
-                              <div>
-                                <label className="block text-[10px] text-slate-400 font-extrabold mb-1">Mensaje de Bienvenida del Especialista</label>
-                                <textarea
-                                  value={clientWelcomeMsg}
-                                  onChange={(e) => {
-                                    setClientWelcomeMsg(e.target.value);
-                                    setCopyLinkSuccess(false);
-                                    setCopyMessageSuccess(false);
-                                  }}
-                                  rows={3}
-                                  placeholder="Escribe un mensaje de bienvenida personalizado para la familia..."
-                                  className="w-full bg-[#090D16] border border-slate-800/80 rounded-xl py-2 px-3 text-[11px] text-white focus:outline-none focus:border-blue-500 leading-relaxed font-medium"
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Preview & Action Center */}
-                          <div className="space-y-3">
-                            <div className="bg-[#0D1324] p-4 rounded-2xl border border-blue-500/10 space-y-3">
-                              <h4 className="font-extrabold text-blue-400 text-[10px] uppercase tracking-wider">2. Tarjeta QR & Enlace</h4>
-                              
-                              {(() => {
-                                const generatedUrl = `${window.location.origin}${window.location.pathname}?demo=true&client=${encodeURIComponent(clientName)}&age=${clientAge}&focus=${encodeURIComponent(clientFocus)}&msg=${encodeURIComponent(clientWelcomeMsg)}`;
-                                const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=130x130&color=186ef3&bgcolor=0d1324&data=${encodeURIComponent(generatedUrl)}`;
-                                
-                                const whatsappMessage = `🚀 *¡Hola! Te invito a conocer NeuroPlanet* 🚀\n\nHe preparado un acceso personalizado y directo para que pruebes las herramientas interactivas diseñadas especialmente para el desarrollo de *${clientName}*:\n\n🎯 *Foco de Demostración*: ${clientFocus}\n🌱 *Nivel Ajustado*: ${clientAge} años\n\n👉 Haz clic en el siguiente enlace para iniciar el recorrido de de demostración de inmediato, sin registros:\n${generatedUrl}\n\n¡Espero que lo disfruten y me cuenten qué tal les pareció! 🌟`;
-
-                                return (
-                                  <div className="space-y-3">
-                                    <div className="flex gap-3 items-center bg-[#090D16] p-3 rounded-xl border border-white/5">
-                                      <div className="bg-slate-950 p-1.5 rounded-lg border border-blue-500/20 flex items-center justify-center shrink-0 shadow-inner">
-                                        <img 
-                                          src={qrCodeUrl} 
-                                          alt="Demo QR Code" 
-                                          className="w-[85px] h-[85px] rounded" 
-                                          referrerPolicy="no-referrer"
-                                        />
-                                      </div>
-                                      <div className="text-left space-y-1">
-                                        <span className="text-[9px] text-amber-400 font-extrabold tracking-wide uppercase">Acceso Estelar QR</span>
-                                        <h5 className="text-[11px] font-bold text-white leading-tight">Escanear para probar Demo</h5>
-                                        <p className="text-[9.5px] text-slate-400 leading-tight">Muestra este código QR o envíalo para que ingresen con un celular.</p>
-                                      </div>
-                                    </div>
-
-                                    {/* Action Buttons */}
-                                    <div className="grid grid-cols-2 gap-2 pt-1">
-                                      <button
-                                        onClick={() => {
-                                          playClickSound();
-                                          navigator.clipboard.writeText(generatedUrl);
-                                          setCopyLinkSuccess(true);
-                                          setTimeout(() => setCopyLinkSuccess(false), 2500);
-                                        }}
-                                        className={`font-extrabold text-[10.5px] py-2.5 px-3 rounded-xl border flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer ${
-                                          copyLinkSuccess
-                                            ? 'bg-[#10B981]/15 text-[#10B981] border-[#10B981]/30 shadow-[0_0_10px_rgba(16,185,129,0.1)]'
-                                            : 'bg-[#111827] hover:bg-[#1f2937] text-slate-300 border-slate-800'
-                                        }`}
-                                      >
-                                        <span>{copyLinkSuccess ? '✓ Copiado' : '🔗 Copiar Enlace'}</span>
-                                      </button>
-
-                                      <button
-                                        onClick={() => {
-                                          playClickSound();
-                                          navigator.clipboard.writeText(whatsappMessage);
-                                          setCopyMessageSuccess(true);
-                                          setTimeout(() => setCopyMessageSuccess(false), 2500);
-                                        }}
-                                        className={`font-extrabold text-[10.5px] py-2.5 px-3 rounded-xl border flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer ${
-                                          copyMessageSuccess
-                                            ? 'bg-[#10B981]/15 text-[#10B981] border-[#10B981]/30 shadow-[0_0_10px_rgba(16,185,129,0.1)]'
-                                            : 'bg-blue-600 hover:bg-blue-500 text-white border-transparent'
-                                        }`}
-                                      >
-                                        <span>{copyMessageSuccess ? '✓ Copiado' : '💬 WhatsApp Demo'}</span>
-                                      </button>
-                                    </div>
-                                    
-                                    <div className="bg-[#090D16] p-2 rounded-xl border border-white/5 text-[9px] text-slate-400 leading-normal max-h-[50px] overflow-y-auto font-mono text-left select-all break-all">
-                                      {generatedUrl}
-                                    </div>
-                                  </div>
-                                );
-                              })()}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
                   </div>
 
                   {/* Clinician secure log-out section */}
@@ -3959,7 +3636,7 @@ export default function ImportedApp() {
                       }}
                       className="w-full bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white font-bold text-xs py-2.5 rounded-xl border border-slate-800/60 transition-all active:scale-98"
                     >
-                      Cerrar Sesión Segura
+                      Cerrar panel
                     </button>
                   </div>
                 </div>
@@ -3985,7 +3662,7 @@ export default function ImportedApp() {
       )}
 
       {/* BOTTOM TAB MENU BAR (Matching the screenshot exactly) */}
-      <nav className="absolute bottom-0 left-0 right-0 bg-[#060913]/90 backdrop-blur-xl border-t border-white/10 py-3.5 px-4 z-40 shrink-0">
+      <nav className="absolute bottom-0 left-0 right-0 bg-[#060913]/95 backdrop-blur-xl border-t border-white/10 py-2.5 px-4 pb-[max(0.625rem,env(safe-area-inset-bottom))] z-40 shrink-0">
         <div className="max-w-md mx-auto flex items-center justify-around gap-4">
           <button
             onClick={() => { playClickSound(); setCurrentTab('inicio'); setActiveModule(null); }}
