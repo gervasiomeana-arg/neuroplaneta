@@ -15,4 +15,6 @@ Verificaciones: `npm run lint` y `npm run build`.
 
 Los perfiles y avances se guardan en el almacenamiento local de este navegador. No se sincronizan entre dispositivos y pueden perderse si se borran los datos del navegador. Evitar ingresar información clínica o identificable de menores en una demostración pública. La pregunta matemática del panel adulto es una barrera de uso, no autenticación.
 
+El resumen imprimible muestra estrellas acumuladas, tareas marcadas y la mejor partida del juego de números por perfil. Son registros de uso de la aplicación, no resultados clínicos ni evidencia de mejora de la atención fuera del juego. Los pictogramas consultados en ARASAAC requieren conexión; revisar atribución y condiciones de uso antes de comercializar una integración.
+
 Las rutas `/api/sync/*` y `/api/migrate/*` están desactivadas (HTTP 410). La implementación anterior permitía leer o sobrescribir perfiles sin autenticación y reemplazar código del servidor. Para habilitar sincronización se necesita autenticación real, control de acceso por perfil y almacenamiento seguro antes de aceptar datos de niños.

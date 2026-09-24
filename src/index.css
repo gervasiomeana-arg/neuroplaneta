@@ -79,3 +79,32 @@
   }
 }
 
+@media print {
+  @page { margin: 14mm; }
+  body * { visibility: hidden !important; }
+  #root, #root > div, #neuroplaneta-workspace, main,
+  #adult-panel-dialog, #adult-panel-scroll {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  #adult-panel-overlay {
+    position: static !important;
+    display: block !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+  #printable-activity-summary, #printable-activity-summary * {
+    visibility: visible !important;
+  }
+  #printable-activity-summary {
+    position: absolute !important;
+    top: 0;
+    left: 0;
+    width: 100%;
+    border: 0;
+    box-shadow: none;
+    background: white;
+    color: #111827;
+  }
+}

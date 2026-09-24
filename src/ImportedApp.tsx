@@ -67,6 +67,28 @@ const EMPTY_PROFILE: Patient = {
   emotionJournal: [], customPictogramImages: {}, customPictogramVoices: {}
 };
 
+const ROUTINE_TASKS = {
+  'Mañana': [
+    { id: 'despertar', name: 'Despertar a tiempo', emoji: '☀️' },
+    { id: 'lavarse', name: 'Lavarse dientes y cara', emoji: '🪥' },
+    { id: 'vestirse', name: 'Vestirse solo/a', emoji: '👕' },
+    { id: 'desayuno', name: 'Tomar desayuno nutritivo', emoji: '🥛' }
+  ],
+  'Tarde': [
+    { id: 'tareas', name: 'Hacer mis deberes', emoji: '📝' },
+    { id: 'ordenar', name: 'Ordenar mi cuarto y juguetes', emoji: '🧸' },
+    { id: 'juego', name: 'Tiempo de juego recreativo', emoji: '🎮' },
+    { id: 'merienda', name: 'Comer merienda saludable', emoji: '🍎' }
+  ],
+  'Noche': [
+    { id: 'bano', name: 'Un baño tibio y relajante', emoji: '🛁' },
+    { id: 'cena', name: 'Cena en familia', emoji: '🍲' },
+    { id: 'dientes_noche', name: 'Cepillarse dientes de noche', emoji: '🪥' },
+    { id: 'dormir', name: 'Cuento estelar y a dormir', emoji: '🌙' }
+  ]
+} as const;
+const ROUTINE_TASK_COUNT = Object.values(ROUTINE_TASKS).flat().length;
+
 // Unified & Proprietary Pictograms Database (Rediseñado con Código de Color Fitzgerald para TEA/TDAH y compatible con AsTeRICS OBF)
 const ALL_DEFAULT_PICTOGRAMS = [
   // necesidades
@@ -171,6 +193,7 @@ export default function ImportedApp() {
   // Game/Module States
   const [activeModule, setActiveModule] = useState<'emociones' | 'atencion' | 'zona_calma' | 'sensorial' | 'sos' | 'comunicar' | 'social' | 'rutinas' | null>(null);
   const [stars, setStars] = useState<number>(0);
+  const [attentionHighScore, setAttentionHighScore] = useState<number>(0);
   const [unlockedAchievements, setUnlockedAchievements] = useState<string[]>([]);
 
   // Mapeos personalizados de pictogramas (guardados en localStorage)
@@ -324,6 +347,7 @@ export default function ImportedApp() {
     if (activePatient && activePatientId) {
       setSelectedAge(activePatient.selectedAge);
       setStars(activePatient.stars);
+      setAttentionHighScore(activePatient.attentionHighScore || 0);
       setUnlockedAchievements(activePatient.unlockedAchievements || []);
       setCompletedRoutineTasks(activePatient.completedRoutineTasks || []);
       setEmotionJournal(activePatient.emotionJournal || []);
@@ -344,6 +368,7 @@ export default function ImportedApp() {
       const hasChanged = 
         current.selectedAge !== selectedAge ||
         current.stars !== stars ||
+        (current.attentionHighScore || 0) !== attentionHighScore ||
         JSON.stringify(current.unlockedAchievements) !== JSON.stringify(unlockedAchievements) ||
         JSON.stringify(current.completedRoutineTasks) !== JSON.stringify(completedRoutineTasks) ||
         JSON.stringify(current.emotionJournal) !== JSON.stringify(emotionJournal) ||
@@ -357,6 +382,7 @@ export default function ImportedApp() {
         ...updatedPatients[index],
         selectedAge,
         stars,
+        attentionHighScore,
         unlockedAchievements,
         completedRoutineTasks,
         emotionJournal,
@@ -368,12 +394,13 @@ export default function ImportedApp() {
       localStorage.setItem('np_active_patient_id', activePatientId);
       return updatedPatients;
     });
-  }, [activePatientId, loadedPatientId, selectedAge, stars, unlockedAchievements, completedRoutineTasks, emotionJournal, customPictogramImages, customPictogramVoices]);
+  }, [activePatientId, loadedPatientId, selectedAge, stars, attentionHighScore, unlockedAchievements, completedRoutineTasks, emotionJournal, customPictogramImages, customPictogramVoices]);
 
   
   // Attention Game State
   const [attentionGameState, setAttentionGameState] = useState<'idle' | 'playing' | 'gameover'>('idle');
   const [attentionScore, setAttentionScore] = useState<number>(0);
+  const attentionScoreRef = useRef(0);
   const [targetNumber, setTargetNumber] = useState<number>(0);
   const [attentionGrid, setAttentionGrid] = useState<number[]>([]);
   const [attentionTimer, setAttentionTimer] = useState<number>(10);
@@ -805,6 +832,7 @@ export default function ImportedApp() {
     }
     
     setAttentionGrid(grid);
+    attentionScoreRef.current = 0;
     setAttentionScore(0);
     setAttentionTimer(selectedAge === '3-5' ? 15 : selectedAge === '6-8' ? 12 : 9);
     setAttentionGameState('playing');
@@ -816,10 +844,13 @@ export default function ImportedApp() {
     
     if (num === targetNumber) {
       playSuccessSound();
-      setAttentionScore(s => s + 1);
+      const nextScore = attentionScoreRef.current + 1;
+      attentionScoreRef.current = nextScore;
+      setAttentionScore(nextScore);
+      setAttentionHighScore(previous => Math.max(previous, nextScore));
       
       // Award star and achievement milestones
-      if (attentionScore + 1 >= 5) {
+      if (nextScore === 5) {
         awardStars(10, 'Foco Láser');
       } else {
         setStars(s => s + 1);
@@ -1262,7 +1293,7 @@ export default function ImportedApp() {
                 </div>
               </div>
               <div className="bg-slate-950/40 p-2 rounded-xl border border-white/5">
-                <span className="text-slate-400 block text-[9px] font-bold">Objetivo Clínico:</span>
+                <span className="text-slate-400 block text-[9px] font-bold">Objetivo de esta actividad:</span>
                 <span className="text-emerald-400 font-bold text-[10.5px] leading-tight block mt-0.5">{activePatient.therapeuticObjective}</span>
               </div>
             </div>
@@ -1713,7 +1744,7 @@ export default function ImportedApp() {
                 <span className="text-4xl">🏆</span>
                 <h3 className="font-extrabold text-sm text-white">¡Misión Completada!</h3>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Lograste encontrar <span className="text-green-400 font-black">{attentionScore}</span> números espaciales, mejorando significativamente tu foco cerebral de manera guiada.
+                  Encontraste <span className="text-green-400 font-black">{attentionScore}</span> números espaciales. Puedes jugar de nuevo o elegir otra actividad.
                 </p>
                 <div className="flex gap-2">
                   <button
@@ -2323,28 +2354,7 @@ export default function ImportedApp() {
 
             {/* Routine Progress and tasks */}
             {(() => {
-              const tabTasks: Record<'Mañana' | 'Tarde' | 'Noche', { id: string, name: string, emoji: string }[]> = {
-                'Mañana': [
-                  { id: 'despertar', name: 'Despertar a tiempo', emoji: '☀️' },
-                  { id: 'lavarse', name: 'Lavarse dientes y cara', emoji: '🪥' },
-                  { id: 'vestirse', name: 'Vestirse solo/a', emoji: '👕' },
-                  { id: 'desayuno', name: 'Tomar desayuno nutritivo', emoji: '🥛' }
-                ],
-                'Tarde': [
-                  { id: 'tareas', name: 'Hacer mis deberes', emoji: '📝' },
-                  { id: 'ordenar', name: 'Ordenar mi cuarto y juguetes', emoji: '🧸' },
-                  { id: 'juego', name: 'Tiempo de juego recreativo', emoji: '🎮' },
-                  { id: 'merienda', name: 'Comer merienda saludable', emoji: '🍎' }
-                ],
-                'Noche': [
-                  { id: 'bano', name: 'Un baño tibio y relajante', emoji: '🛁' },
-                  { id: 'cena', name: 'Cena en familia', emoji: '🍲' },
-                  { id: 'dientes_noche', name: 'Cepillarse dientes de noche', emoji: '🪥' },
-                  { id: 'dormir', name: 'Cuento estelar y a dormir', emoji: '🌙' }
-                ]
-              };
-
-              const currentTasks = tabTasks[activeRoutineTab];
+              const currentTasks = ROUTINE_TASKS[activeRoutineTab];
               const completedInTab = currentTasks.filter(t => completedRoutineTasks.includes(t.id)).length;
               const percent = Math.round((completedInTab / currentTasks.length) * 100) || 0;
 
@@ -2768,15 +2778,15 @@ export default function ImportedApp() {
 
         {/* 👨‍👩‍👧 PARENTS AND THERAPEUTIC GATEWAY DASHBOARD (NEUROPLANETA ENTERPRISE) */}
         {showParentsMode && (
-          <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-            <div className="bg-[#0F172A] border border-slate-800 rounded-3xl p-6 w-full max-w-2xl shadow-2xl relative max-h-[90vh] flex flex-col overflow-hidden">
+          <div id="adult-panel-overlay" className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <div id="adult-panel-dialog" className="bg-[#0F172A] border border-slate-800 rounded-3xl p-6 w-full max-w-2xl shadow-2xl relative max-h-[90vh] flex flex-col overflow-hidden">
               
               <div className="flex items-center justify-between border-b border-slate-800 pb-3 shrink-0">
                 <div className="flex items-center gap-2">
                   <span className="text-xl">🩺</span>
                   <div>
-                    <h2 className="text-sm font-extrabold text-blue-400 uppercase tracking-widest leading-none">Panel Clínico y Escuelas</h2>
-                    <p className="text-[10px] text-slate-400 mt-1">NeuroPlaneta Enterprise v2.5</p>
+                    <h2 className="text-sm font-extrabold text-blue-400 uppercase tracking-widest leading-none">Panel de adultos</h2>
+                    <p className="text-[10px] text-slate-400 mt-1">Configuración y resumen de actividades</p>
                   </div>
                 </div>
                 <button 
@@ -2829,26 +2839,30 @@ export default function ImportedApp() {
                     <div className="flex items-center gap-2.5">
                       <span className="text-2xl bg-slate-900 p-1.5 rounded-xl border border-slate-800">{activePatient.avatar}</span>
                       <div className="text-left">
-                        <span className="text-[9px] text-blue-400 uppercase font-black tracking-widest">Paciente Activo</span>
+                        <span className="text-[9px] text-blue-400 uppercase font-black tracking-widest">Perfil activo</span>
                         <h4 className="text-xs font-black text-white leading-none mt-0.5">{activePatient.name}</h4>
-                        <p className="text-[9px] text-slate-400 mt-0.5">Foco Máximo: {activePatient.attentionHighScore || 0} pts • Estrellas: {stars} ⭐</p>
+                        <p className="text-[9px] text-slate-400 mt-0.5">Mejor partida de números: {attentionHighScore} aciertos • Estrellas: {stars} ⭐</p>
                       </div>
                     </div>
                     <div className="text-right">
                       <span className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[8px] font-black uppercase px-2 py-1 rounded-full flex items-center gap-1">
                         <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></span>
-                        Sesión Activa
+                        Perfil abierto
                       </span>
                     </div>
                   </div>
 
+                  <p className="text-[10px] text-slate-300 bg-blue-950/30 border border-blue-500/20 rounded-xl p-2.5 mb-3">
+                    Los perfiles y registros quedan en este navegador. No hay respaldo entre dispositivos; si se borran los datos del navegador, se perderán. Usa apodos y evita ingresar información clínica sensible.
+                  </p>
+
                   {/* High fidelity enterprise navigation tabs */}
                   <div className="flex border-b border-slate-800/80 gap-1 pb-2 shrink-0 overflow-x-auto">
                     {[
-                      { id: 'pacientes', label: '👥 Pacientes', desc: 'Clínica / Escuela' },
+                      { id: 'pacientes', label: '👥 Perfiles', desc: 'Familia / Escuela' },
                       { id: 'pictogramas', label: '🎨 Pictogramas', desc: 'Biblioteca' },
                       { id: 'sonido', label: '🔊 Audio Sensorial', desc: 'Hipersensibilidad' },
-                      { id: 'reportes', label: '📋 Reportes PDF', desc: 'Evolutivo' }
+                      { id: 'reportes', label: '📋 Resumen', desc: 'Uso local' }
                     ].map(tab => (
                       <button
                         key={tab.id}
@@ -2869,7 +2883,7 @@ export default function ImportedApp() {
                   </div>
 
                   {/* Scrollable Dashboard Viewport */}
-                  <div className="flex-1 overflow-y-auto py-3 pr-1 min-h-0 text-left text-xs">
+                  <div id="adult-panel-scroll" className="flex-1 overflow-y-auto py-3 pr-1 min-h-0 text-left text-xs">
                     
                     {/* TAB 1: PATIENTS / MULTI-USER MANAGEMENT */}
                     {parentsActiveTab === 'pacientes' && (
@@ -2877,7 +2891,7 @@ export default function ImportedApp() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           {/* Patients switcher */}
                           <div className="space-y-2">
-                            <h3 className="font-extrabold text-white text-xs flex items-center gap-1">👥 Directorio de Pacientes</h3>
+                            <h3 className="font-extrabold text-white text-xs flex items-center gap-1">👥 Perfiles del dispositivo</h3>
                             <p className="text-[10px] text-slate-400 mb-2">Selecciona el perfil para cargar automáticamente su historial, configuraciones, imágenes y voces.</p>
                             
                             <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
@@ -2989,7 +3003,7 @@ export default function ImportedApp() {
                               disabled={!newPatientName.trim()}
                               className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:hover:bg-blue-600 text-white font-black text-[10px] py-1.5 rounded-lg transition-all"
                             >
-                              ✓ Añadir Paciente Clínico
+                              ✓ Añadir perfil
                             </button>
                           </div>
                         </div>
@@ -3329,6 +3343,9 @@ export default function ImportedApp() {
                               <p className="text-[9.5px] text-slate-400 leading-tight">
                                 Busca cualquier pictograma oficial en los servidores de ARASAAC y asígnalo instantáneamente al pictograma seleccionado arriba.
                               </p>
+                              <p className="text-[9.5px] text-slate-400 leading-tight">
+                                Pictogramas de <a className="text-blue-300 underline" href="https://arasaac.org" target="_blank" rel="noopener noreferrer">ARASAAC</a>, Gobierno de Aragón. La búsqueda requiere internet. Antes de un uso comercial, revisa sus <a className="text-blue-300 underline" href="https://aulaabierta.arasaac.org/en/terms-of-use" target="_blank" rel="noopener noreferrer">condiciones de uso y atribución</a>.
+                              </p>
 
                               <div className="flex gap-1.5 pt-1.5">
                                 <input
@@ -3509,7 +3526,7 @@ export default function ImportedApp() {
                     {parentsActiveTab === 'reportes' && (
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <h3 className="font-extrabold text-white text-xs">📋 Reportes Evolutivos de Progreso Médico</h3>
+                          <h3 className="font-extrabold text-white text-xs">📋 Resumen de actividades</h3>
                           <button
                             onClick={() => {
                               playSuccessSound();
@@ -3521,53 +3538,51 @@ export default function ImportedApp() {
                           </button>
                         </div>
                         <p className="text-[10px] text-slate-400 leading-relaxed mb-2">
-                          Este informe consolida las estadísticas de la sesión, objetivos cumplidos, diario de conducta y respuestas sensoriales para la historia clínica o escolar.
+                          Este resumen muestra registros guardados en este navegador. No es una evaluación clínica ni mide cambios en la atención fuera de la app.
                         </p>
 
-                        {/* Printable Clinical Sheet layout */}
-                        <div id="printable-clinical-report" className="bg-white text-slate-900 p-5 rounded-2xl border border-slate-300 shadow space-y-4 text-left">
+                        {/* Printable activity summary */}
+                        <div id="printable-activity-summary" className="bg-white text-slate-900 p-5 rounded-2xl border border-slate-300 shadow space-y-4 text-left">
                           {/* Official Letterhead */}
                           <div className="flex justify-between items-start border-b-2 border-slate-800 pb-3">
                             <div>
                               <h1 className="text-sm font-black text-slate-900 tracking-tight flex items-center gap-1">
-                                🪐 NEUROPLANETA CLINICAL SYSTEM
+                                NEUROPLANETA
                               </h1>
-                              <p className="text-[8px] text-slate-500 uppercase font-bold">Reporte de Evolución y Apoyo Cognitivo</p>
-                              <p className="text-[8px] text-slate-400">ID Informe: NP-REPORT-{activePatient.id.toUpperCase()}</p>
+                              <p className="text-[8px] text-slate-500 uppercase font-bold">Resumen local de actividades</p>
                             </div>
                             <div className="text-right text-[8px] text-slate-500">
                               <p>Fecha de Emisión: {new Date().toLocaleDateString('es-ES')}</p>
-                              <p>Estado: Oficial Clínico</p>
+                              <p>Origen: este dispositivo</p>
                             </div>
                           </div>
 
                           {/* Patient metadata */}
                           <div className="grid grid-cols-2 gap-3 text-[9px] bg-slate-100 p-2.5 rounded-xl border border-slate-200">
                             <div>
-                              <p><strong>Paciente:</strong> {activePatient.name}</p>
+                              <p><strong>Perfil:</strong> {activePatient.name}</p>
                               <p><strong>Rango Etario:</strong> {activePatient.selectedAge} años</p>
                             </div>
                             <div>
-                              <p><strong>Objetivo Principal:</strong> {activePatient.therapeuticObjective || 'Estabilidad conductual y socialización'}</p>
-                              <p><strong>Clasificación:</strong> Soporte de Neurodesarrollo y Comunicación Aumentativa</p>
+                              <p><strong>Objetivo anotado:</strong> {activePatient.therapeuticObjective || 'Sin objetivo anotado'}</p>
                             </div>
                           </div>
 
                           {/* Performance Stats */}
                           <div className="space-y-1">
-                            <h3 className="font-black text-[10px] text-slate-850 uppercase tracking-wide">1. Rendimiento Clínico de la Sesión</h3>
+                            <h3 className="font-black text-[10px] text-slate-850 uppercase tracking-wide">1. Actividad registrada en este perfil</h3>
                             <div className="grid grid-cols-3 gap-2">
                               <div className="bg-slate-50 border border-slate-200 p-2 rounded-lg text-center">
                                 <div className="text-[14px] font-black text-yellow-600">{stars}</div>
                                 <div className="text-[7.5px] text-slate-500">Estrellas Recogidas</div>
                               </div>
                               <div className="bg-slate-50 border border-slate-200 p-2 rounded-lg text-center">
-                                <div className="text-[14px] font-black text-blue-600">{completedRoutineTasks.length} / 3</div>
-                                <div className="text-[7.5px] text-slate-500">Hábitos Cumplidos</div>
+                                <div className="text-[14px] font-black text-blue-600">{completedRoutineTasks.length} / {ROUTINE_TASK_COUNT}</div>
+                                <div className="text-[7.5px] text-slate-500">Tareas marcadas</div>
                               </div>
                               <div className="bg-slate-50 border border-slate-200 p-2 rounded-lg text-center">
-                                <div className="text-[14px] font-black text-indigo-600">{activePatient.attentionHighScore || 0} pts</div>
-                                <div className="text-[7.5px] text-slate-500">Foco Atencional Máximo</div>
+                                <div className="text-[14px] font-black text-indigo-600">{attentionHighScore}</div>
+                                <div className="text-[7.5px] text-slate-500">Mejor partida de números</div>
                               </div>
                             </div>
                           </div>
@@ -3590,9 +3605,9 @@ export default function ImportedApp() {
 
                           {/* Emotion Log */}
                           <div className="space-y-1">
-                            <h3 className="font-black text-[10px] text-slate-850 uppercase tracking-wide">3. Registro de Autoregresión Emocional</h3>
+                            <h3 className="font-black text-[10px] text-slate-850 uppercase tracking-wide">3. Emociones anotadas</h3>
                             {emotionJournal.length === 0 ? (
-                              <p className="text-[8px] text-slate-500 italic">Ninguna emoción fue registrada formalmente por el paciente en este ciclo.</p>
+                              <p className="text-[8px] text-slate-500 italic">Aún no se anotaron emociones en este perfil.</p>
                             ) : (
                               <div className="space-y-1 max-h-[100px] overflow-y-auto pr-1">
                                 {emotionJournal.map((journal, i) => (
@@ -3608,17 +3623,8 @@ export default function ImportedApp() {
                             )}
                           </div>
 
-                          {/* Signature line for therapists */}
-                          <div className="pt-4 border-t border-dashed border-slate-300 flex justify-between text-[8px] text-slate-400">
-                            <div>
-                              <div className="w-24 border-b border-slate-400 mb-1"></div>
-                              <p>Firma del Profesional</p>
-                              <p>Terapeuta / Psicólogo Clínico</p>
-                            </div>
-                            <div className="text-right">
-                              <p>NeuroPlaneta Assistive Software</p>
-                              <p>Sello de Certificación Digital</p>
-                            </div>
+                          <div className="pt-4 border-t border-dashed border-slate-300 text-[8px] text-slate-500">
+                            Registro orientativo de uso de la app. Las estrellas, tareas marcadas y partidas no equivalen a un diagnóstico ni a una medición clínica.
                           </div>
                         </div>
                       </div>
