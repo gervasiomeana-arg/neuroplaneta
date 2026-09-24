@@ -914,7 +914,7 @@ export default function ImportedApp() {
   // ONBOARDING WIZARD RENDER
   if (!onboardingCompleted) {
     return (
-      <div id="neuroplaneta-onboarding-wrapper" className="min-h-screen stitch-grid flex items-center justify-center p-4 relative overflow-hidden">
+      <div id="neuroplaneta-onboarding-wrapper" className="np-theme min-h-dvh stitch-grid flex items-center justify-center p-4 relative overflow-hidden">
         {/* Glowing atmospheric nebula */}
         <div className="absolute top-1/4 left-1/4 w-80 h-80 ambient-glow-violet rounded-full opacity-50"></div>
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 ambient-glow-cyan rounded-full opacity-40"></div>
@@ -1218,7 +1218,7 @@ export default function ImportedApp() {
       <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] ambient-glow-cyan rounded-full opacity-35"></div>
       <div className="absolute top-1/3 right-1/3 w-72 h-72 ambient-glow-pink rounded-full opacity-30"></div>
 
-      <div id="neuroplaneta-workspace" className={`mx-auto bg-[#0B0F19]/95 h-dvh sm:h-[92vh] sm:min-h-[600px] shadow-2xl relative flex flex-col justify-between overflow-hidden rounded-none sm:rounded-[32px] border border-white/10 text-slate-100 font-sans transition-all duration-300 backdrop-blur-xl ${appDeviceMode === 'tablet' ? 'max-w-4xl w-full' : 'max-w-md w-full'}`}>
+      <div id="neuroplaneta-workspace" className={`np-theme mx-auto h-dvh sm:h-[92vh] sm:min-h-[600px] shadow-2xl relative flex flex-col justify-between overflow-hidden rounded-none sm:rounded-[32px] border text-slate-100 font-sans transition-all duration-300 ${appDeviceMode === 'tablet' ? 'max-w-4xl w-full' : 'max-w-md w-full'}`}>
       
       {/* HEADER SECTION (Like the screenshot) */}
       <header className="px-4 sm:px-6 py-3 sm:py-5 bg-[#03060E]/80 backdrop-blur-md border-b border-white/10 flex items-center justify-between shrink-0">
@@ -1365,7 +1365,7 @@ export default function ImportedApp() {
               </div>
               
               {/* Animated Floating Planet */}
-              <div className="shrink-0 w-16 h-16 bg-slate-950 rounded-full flex items-center justify-center border border-slate-800 shadow-inner relative group cursor-pointer"
+              <button type="button" aria-label="Saludar a Cosmo" className="shrink-0 w-16 h-16 bg-slate-950 rounded-full flex items-center justify-center border border-slate-800 shadow-inner relative group cursor-pointer"
                 onClick={() => {
                   playCalmSound();
                   awardStars(1, 'Cosmo Amigo');
@@ -1374,7 +1374,7 @@ export default function ImportedApp() {
                 <span className="text-3xl animate-pulse">🪐</span>
                 {/* Floating orbital glow */}
                 <div className="absolute inset-0 rounded-full border border-dashed border-blue-500/30 animate-spin-slow"></div>
-              </div>
+              </button>
 
               {/* Cosmo speech bubble */}
               <div className="flex-1 bg-white text-slate-900 p-3.5 rounded-2xl rounded-tl-none relative shadow-md">
@@ -1394,7 +1394,7 @@ export default function ImportedApp() {
                 <span className="text-2xl">🪐</span>
                 <div>
                   <h3 className="font-extrabold text-sm text-white">Modo {activeAgeConfig.label} activado!</h3>
-                  <p className="text-[11px] text-slate-400">Ejercicios adaptados científicamente.</p>
+                  <p className="text-[11px] text-slate-400">Elige una actividad a tu ritmo.</p>
                 </div>
               </div>
               <button 
@@ -1406,7 +1406,7 @@ export default function ImportedApp() {
             </div>
 
             {/* MAIN 4 CORE THERAPEUTIC MODULES GRID */}
-            <div className={`grid gap-4 ${appDeviceMode === 'tablet' ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4' : 'grid-cols-2'}`}>
+            <div className={`np-modules grid gap-3 sm:gap-4 ${appDeviceMode === 'tablet' ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2'}`}>
               
               {/* Emociones (Mood and Emotional Regulation) */}
               <button
@@ -1444,7 +1444,7 @@ export default function ImportedApp() {
                 </div>
                 <div>
                   <h3 className="font-extrabold text-sm text-blue-400 tracking-wide">Atención</h3>
-                  <p className="text-[10.5px] text-slate-400 mt-1 leading-tight">Ejercicios para concentrarte mejor</p>
+                  <p className="text-[10.5px] text-slate-400 mt-1 leading-tight">Busca números y juega a observar</p>
                 </div>
                 {/* Radial corner ambient glow */}
                 <div className="absolute -bottom-10 -right-10 w-20 h-20 bg-blue-500/5 rounded-full blur-xl group-hover:bg-blue-500/10 transition-all duration-300"></div>
@@ -1486,7 +1486,7 @@ export default function ImportedApp() {
                 </div>
                 <div>
                   <h3 className="font-extrabold text-sm text-pink-400 tracking-wide">Sensorial</h3>
-                  <p className="text-[10.5px] text-slate-400 mt-1 leading-tight">Estimula y regula tus sentidos</p>
+                  <p className="text-[10.5px] text-slate-400 mt-1 leading-tight">Explora colores y sonidos suaves</p>
                 </div>
                 {/* Radial corner ambient glow */}
                 <div className="absolute -bottom-10 -right-10 w-20 h-20 bg-pink-500/5 rounded-full blur-xl group-hover:bg-pink-500/10 transition-all duration-300"></div>
@@ -1507,7 +1507,7 @@ export default function ImportedApp() {
                 </div>
                 <div>
                   <h3 className="font-extrabold text-sm text-sky-400 tracking-wide">Comunicar</h3>
-                  <p className="text-[10.5px] text-slate-400 mt-1 leading-tight">Usa pictogramas de voz inteligente</p>
+                  <p className="text-[10.5px] text-slate-400 mt-1 leading-tight">Forma frases con pictogramas</p>
                 </div>
                 {/* Radial corner ambient glow */}
                 <div className="absolute -bottom-10 -right-10 w-20 h-20 bg-sky-500/5 rounded-full blur-xl group-hover:bg-sky-500/10 transition-all duration-300"></div>
@@ -1864,7 +1864,7 @@ export default function ImportedApp() {
             {/* Tap canvas */}
             <div 
               onClick={handleSensoryTap}
-              className="relative w-full h-80 bg-gradient-to-b from-[#090D1A] to-[#121A33] border-2 border-slate-800 rounded-2xl overflow-hidden cursor-crosshair flex items-center justify-center text-center p-4 shadow-inner"
+              className="np-sensory-canvas relative w-full h-80 bg-gradient-to-b from-[#090D1A] to-[#121A33] border-2 border-slate-800 rounded-2xl overflow-hidden cursor-crosshair flex items-center justify-center text-center p-4 shadow-inner"
             >
               {sensorialNotes.length === 0 && (
                 <div className="space-y-2 pointer-events-none opacity-45">
