@@ -53,6 +53,7 @@ interface Patient {
   stars: number;
   unlockedAchievements: string[];
   completedRoutineTasks: string[];
+  routineTasks?: RoutineSchedule;
   emotionJournal: { date: string; emotion: string; note: string }[];
   customPictogramImages: Record<string, string>;
   customPictogramVoices: Record<string, string>;
@@ -67,7 +68,11 @@ const EMPTY_PROFILE: Patient = {
   emotionJournal: [], customPictogramImages: {}, customPictogramVoices: {}
 };
 
-const ROUTINE_TASKS = {
+type RoutineTab = 'Mañana' | 'Tarde' | 'Noche';
+type RoutineTask = { id: string; name: string; emoji: string };
+type RoutineSchedule = Record<RoutineTab, RoutineTask[]>;
+
+const ROUTINE_TASKS: RoutineSchedule = {
   'Mañana': [
     { id: 'despertar', name: 'Despertar a tiempo', emoji: '☀️' },
     { id: 'lavarse', name: 'Lavarse dientes y cara', emoji: '🪥' },
@@ -86,8 +91,26 @@ const ROUTINE_TASKS = {
     { id: 'dientes_noche', name: 'Cepillarse dientes de noche', emoji: '🪥' },
     { id: 'dormir', name: 'Cuento estelar y a dormir', emoji: '🌙' }
   ]
-} as const;
-const ROUTINE_TASK_COUNT = Object.values(ROUTINE_TASKS).flat().length;
+};
+const routineTabs: RoutineTab[] = ['Mañana', 'Tarde', 'Noche'];
+const copyDefaultRoutine = (): RoutineSchedule => ({
+  Mañana: ROUTINE_TASKS.Mañana.map(task => ({ ...task })),
+  Tarde: ROUTINE_TASKS.Tarde.map(task => ({ ...task })),
+  Noche: ROUTINE_TASKS.Noche.map(task => ({ ...task }))
+});
+const readRoutineTasks = (value: unknown): RoutineSchedule => {
+  if (!value || typeof value !== 'object') return copyDefaultRoutine();
+  const saved = value as Partial<RoutineSchedule>;
+  const defaults = copyDefaultRoutine();
+  for (const tab of routineTabs) {
+    if (Array.isArray(saved[tab])) {
+      defaults[tab] = saved[tab].filter((task): task is RoutineTask =>
+        !!task && typeof task.id === 'string' && typeof task.name === 'string' && typeof task.emoji === 'string'
+      ).slice(0, 12).map(task => ({ id: task.id, name: task.name.slice(0, 60), emoji: task.emoji.slice(0, 8) }));
+    }
+  }
+  return defaults;
+};
 
 // Unified & Proprietary Pictograms Database (Rediseñado con Código de Color Fitzgerald para TEA/TDAH y compatible con AsTeRICS OBF)
 const ALL_DEFAULT_PICTOGRAMS = [
@@ -168,7 +191,7 @@ export default function ImportedApp() {
   const [onboardingStep, setOnboardingStep] = useState<number>(1);
 
   // Clinician dashboard tab selection
-  const [parentsActiveTab, setParentsActiveTab] = useState<'pacientes' | 'pictogramas' | 'sonido' | 'reportes'>('pacientes');
+  const [parentsActiveTab, setParentsActiveTab] = useState<'pacientes' | 'rutinas' | 'pictogramas' | 'sonido' | 'reportes'>('pacientes');
 
   // Client demo mode states
   const [clientDemoMessage, setClientDemoMessage] = useState<string>('');
@@ -222,7 +245,10 @@ export default function ImportedApp() {
   const [storyFeedback, setStoryFeedback] = useState<{ isCorrect: boolean, text: string } | null>(null);
 
   // Rutinas Checklist States
-  const [activeRoutineTab, setActiveRoutineTab] = useState<'Mañana' | 'Tarde' | 'Noche'>('Mañana');
+  const [activeRoutineTab, setActiveRoutineTab] = useState<RoutineTab>('Mañana');
+  const [routineTasks, setRoutineTasks] = useState<RoutineSchedule>(copyDefaultRoutine);
+  const [newRoutineName, setNewRoutineName] = useState('');
+  const [newRoutineEmoji, setNewRoutineEmoji] = useState('⭐');
   const [completedRoutineTasks, setCompletedRoutineTasks] = useState<string[]>([]);
   
   // Settings & Parents Mode with Sensory Sound Engine & ARASAAC Integration
@@ -282,6 +308,8 @@ export default function ImportedApp() {
   
   // Active patient profile helper
   const activePatient = patients.find(p => p.id === activePatientId) || patients[0] || EMPTY_PROFILE;
+  const allRoutineTasks = routineTabs.flatMap(tab => routineTasks[tab]);
+  const completedRoutineCount = allRoutineTasks.filter(task => completedRoutineTasks.includes(task.id)).length;
 
   // --- Check for Client Direct Access Parameters (e.g. ?demo=true&client=Mateo&age=6-8&focus=Atencion&msg=...) ---
   useEffect(() => {
@@ -350,6 +378,8 @@ export default function ImportedApp() {
       setAttentionHighScore(activePatient.attentionHighScore || 0);
       setUnlockedAchievements(activePatient.unlockedAchievements || []);
       setCompletedRoutineTasks(activePatient.completedRoutineTasks || []);
+      setRoutineTasks(readRoutineTasks(activePatient.routineTasks));
+      setActiveTimerTask(null);
       setEmotionJournal(activePatient.emotionJournal || []);
       setCustomPictogramImages(activePatient.customPictogramImages || {});
       setCustomPictogramVoices(activePatient.customPictogramVoices || {});
@@ -371,6 +401,7 @@ export default function ImportedApp() {
         (current.attentionHighScore || 0) !== attentionHighScore ||
         JSON.stringify(current.unlockedAchievements) !== JSON.stringify(unlockedAchievements) ||
         JSON.stringify(current.completedRoutineTasks) !== JSON.stringify(completedRoutineTasks) ||
+        JSON.stringify(readRoutineTasks(current.routineTasks)) !== JSON.stringify(routineTasks) ||
         JSON.stringify(current.emotionJournal) !== JSON.stringify(emotionJournal) ||
         JSON.stringify(current.customPictogramImages) !== JSON.stringify(customPictogramImages) ||
         JSON.stringify(current.customPictogramVoices) !== JSON.stringify(customPictogramVoices);
@@ -385,6 +416,7 @@ export default function ImportedApp() {
         attentionHighScore,
         unlockedAchievements,
         completedRoutineTasks,
+        routineTasks,
         emotionJournal,
         customPictogramImages,
         customPictogramVoices
@@ -394,7 +426,7 @@ export default function ImportedApp() {
       localStorage.setItem('np_active_patient_id', activePatientId);
       return updatedPatients;
     });
-  }, [activePatientId, loadedPatientId, selectedAge, stars, attentionHighScore, unlockedAchievements, completedRoutineTasks, emotionJournal, customPictogramImages, customPictogramVoices]);
+  }, [activePatientId, loadedPatientId, selectedAge, stars, attentionHighScore, unlockedAchievements, completedRoutineTasks, routineTasks, emotionJournal, customPictogramImages, customPictogramVoices]);
 
   
   // Attention Game State
@@ -2354,9 +2386,9 @@ export default function ImportedApp() {
 
             {/* Routine Progress and tasks */}
             {(() => {
-              const currentTasks = ROUTINE_TASKS[activeRoutineTab];
+              const currentTasks = routineTasks[activeRoutineTab];
               const completedInTab = currentTasks.filter(t => completedRoutineTasks.includes(t.id)).length;
-              const percent = Math.round((completedInTab / currentTasks.length) * 100) || 0;
+              const percent = currentTasks.length ? Math.round((completedInTab / currentTasks.length) * 100) : 0;
 
               if (activeTimerTask) {
                 const radius = 60;
@@ -2524,6 +2556,7 @@ export default function ImportedApp() {
 
                   {/* Tasks list */}
                   <div className="space-y-2">
+                    {currentTasks.length === 0 && <p className="rounded-2xl border border-slate-800 p-5 text-sm text-slate-400">Todavía no hay tareas. Una persona adulta puede agregarlas desde el panel de configuración.</p>}
                     {currentTasks.map(task => {
                       const isDone = completedRoutineTasks.includes(task.id);
                       
@@ -2565,6 +2598,7 @@ export default function ImportedApp() {
                               }
                             }}
                             className="flex-1 flex items-center gap-3 text-left py-2 px-1.5 focus:outline-none"
+                            aria-pressed={isDone}
                           >
                             <span className="text-2xl filter drop-shadow-sm">{task.emoji}</span>
                             <span className={`text-xs font-black ${isDone ? 'line-through text-slate-400' : ''}`}>
@@ -2585,6 +2619,7 @@ export default function ImportedApp() {
                                   setTimerIsActive(true);
                                 }}
                                 className="px-3 py-1.5 bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/20 hover:border-blue-500/40 rounded-xl text-xs font-bold transition-all flex items-center gap-1 shrink-0 scale-95 hover:scale-100"
+                                aria-label={`Iniciar temporizador para ${task.name}`}
                                 title="Iniciar temporizador visual"
                               >
                                 ⏱️ <span className="text-[9px] font-extrabold uppercase hidden sm:inline">Reloj</span>
@@ -2610,7 +2645,9 @@ export default function ImportedApp() {
                                   }
                                 }
                               }}
-                              className={`w-6 h-6 rounded-lg flex items-center justify-center border-2 transition-all shrink-0 ${
+                              aria-label={`${isDone ? 'Marcar pendiente' : 'Marcar completada'}: ${task.name}`}
+                              aria-pressed={isDone}
+                              className={`w-11 h-11 rounded-lg flex items-center justify-center border-2 transition-all shrink-0 ${
                                 isDone 
                                   ? 'bg-emerald-500 border-emerald-400 text-slate-950' 
                                   : 'border-slate-700 bg-slate-950 hover:border-slate-600'
@@ -2860,6 +2897,7 @@ export default function ImportedApp() {
                   <div className="flex border-b border-slate-800/80 gap-1 pb-2 shrink-0 overflow-x-auto">
                     {[
                       { id: 'pacientes', label: '👥 Perfiles', desc: 'Familia / Escuela' },
+                      { id: 'rutinas', label: '📅 Rutinas', desc: 'Editar tareas' },
                       { id: 'pictogramas', label: '🎨 Pictogramas', desc: 'Biblioteca' },
                       { id: 'sonido', label: '🔊 Audio Sensorial', desc: 'Hipersensibilidad' },
                       { id: 'reportes', label: '📋 Resumen', desc: 'Uso local' }
@@ -2884,6 +2922,76 @@ export default function ImportedApp() {
 
                   {/* Scrollable Dashboard Viewport */}
                   <div id="adult-panel-scroll" className="flex-1 overflow-y-auto py-3 pr-1 min-h-0 text-left text-xs">
+
+                    {parentsActiveTab === 'rutinas' && (
+                      <section className="space-y-4" aria-label="Editar rutinas del perfil activo">
+                        <div>
+                          <h3 className="font-extrabold text-sm text-white">Rutinas de {activePatient.name}</h3>
+                          <p className="text-slate-400 mt-1">Las tareas se guardan solo en este perfil y en este navegador. Puedes agregar hasta 12 por momento del día.</p>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2" role="group" aria-label="Momento del día">
+                          {routineTabs.map(tab => (
+                            <button key={tab} type="button" onClick={() => setActiveRoutineTab(tab)}
+                              aria-pressed={activeRoutineTab === tab}
+                              className={`rounded-xl border p-2 font-bold ${activeRoutineTab === tab ? 'bg-emerald-500/15 border-emerald-500 text-emerald-400' : 'bg-slate-900 border-slate-800 text-slate-400'}`}>
+                              {tab}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="space-y-2">
+                          {routineTasks[activeRoutineTab].map((task, index) => (
+                            <div key={task.id} className="rounded-xl border border-slate-800 bg-slate-950 p-2 flex flex-wrap items-center gap-2">
+                              <span aria-hidden="true" className="text-xl">{task.emoji}</span>
+                              <label className="sr-only" htmlFor={`routine-${task.id}`}>Nombre de la tarea {index + 1}</label>
+                              <input id={`routine-${task.id}`} type="text" maxLength={60} value={task.name}
+                                onChange={event => {
+                                  const name = event.target.value;
+                                  setRoutineTasks(prev => ({ ...prev, [activeRoutineTab]: prev[activeRoutineTab].map(item => item.id === task.id ? { ...item, name } : item) }));
+                                }}
+                                onBlur={() => {
+                                  if (!task.name.trim()) setRoutineTasks(prev => ({ ...prev, [activeRoutineTab]: prev[activeRoutineTab].map(item => item.id === task.id ? { ...item, name: 'Actividad' } : item) }));
+                                }}
+                                className="min-w-0 flex-1 rounded-lg border border-slate-800 bg-slate-900 p-2 text-sm text-white" />
+                              <button type="button" disabled={index === 0} aria-label={`Subir ${task.name}`} title="Subir tarea"
+                                onClick={() => setRoutineTasks(prev => {
+                                  const next = [...prev[activeRoutineTab]];
+                                  [next[index - 1], next[index]] = [next[index], next[index - 1]];
+                                  return { ...prev, [activeRoutineTab]: next };
+                                })} className="rounded-lg bg-slate-800 px-2 py-2 disabled:opacity-40">↑</button>
+                              <button type="button" disabled={index === routineTasks[activeRoutineTab].length - 1} aria-label={`Bajar ${task.name}`} title="Bajar tarea"
+                                onClick={() => setRoutineTasks(prev => {
+                                  const next = [...prev[activeRoutineTab]];
+                                  [next[index], next[index + 1]] = [next[index + 1], next[index]];
+                                  return { ...prev, [activeRoutineTab]: next };
+                                })} className="rounded-lg bg-slate-800 px-2 py-2 disabled:opacity-40">↓</button>
+                              <button type="button" aria-label={`Eliminar ${task.name}`} title="Eliminar tarea"
+                                onClick={() => {
+                                  setRoutineTasks(prev => ({ ...prev, [activeRoutineTab]: prev[activeRoutineTab].filter(item => item.id !== task.id) }));
+                                  setCompletedRoutineTasks(prev => prev.filter(id => id !== task.id));
+                                  if (activeTimerTask?.id === task.id) { setActiveTimerTask(null); setTimerIsActive(false); }
+                                }} className="rounded-lg bg-rose-950/40 px-2 py-2 text-rose-300">Eliminar</button>
+                            </div>
+                          ))}
+                          {routineTasks[activeRoutineTab].length === 0 && <p className="text-slate-400 rounded-xl border border-slate-800 p-3">Agrega una tarea para comenzar.</p>}
+                        </div>
+                        <form className="flex flex-wrap gap-2 rounded-2xl bg-slate-950 border border-slate-800 p-3"
+                          onSubmit={event => {
+                            event.preventDefault();
+                            const name = newRoutineName.trim();
+                            if (!name || routineTasks[activeRoutineTab].length >= 12) return;
+                            setRoutineTasks(prev => ({ ...prev, [activeRoutineTab]: [...prev[activeRoutineTab], { id: `custom_${crypto.randomUUID()}`, name, emoji: newRoutineEmoji }] }));
+                            setNewRoutineName('');
+                          }}>
+                          <label className="sr-only" htmlFor="new-routine-emoji">Imagen de la tarea</label>
+                          <select id="new-routine-emoji" value={newRoutineEmoji} onChange={event => setNewRoutineEmoji(event.target.value)} className="rounded-xl border border-slate-800 bg-slate-900 p-2" aria-label="Imagen de la tarea">
+                            {['⭐', '🪥', '👕', '🍎', '📚', '🧸', '🛁', '🌙', '☀️', '🎨'].map(emoji => <option key={emoji} value={emoji}>{emoji}</option>)}
+                          </select>
+                          <label className="sr-only" htmlFor="new-routine-name">Nueva tarea</label>
+                          <input id="new-routine-name" type="text" value={newRoutineName} maxLength={60} placeholder="Nueva tarea..." onChange={event => setNewRoutineName(event.target.value)} className="min-w-0 flex-1 rounded-xl border border-slate-800 bg-slate-900 p-2" />
+                          <button type="submit" disabled={!newRoutineName.trim() || routineTasks[activeRoutineTab].length >= 12} className="rounded-xl bg-blue-600 px-4 py-2 text-white font-bold disabled:opacity-40">Agregar</button>
+                        </form>
+                      </section>
+                    )}
                     
                     {/* TAB 1: PATIENTS / MULTI-USER MANAGEMENT */}
                     {parentsActiveTab === 'pacientes' && (
@@ -3415,7 +3523,7 @@ export default function ImportedApp() {
                             🔊 Control Sensorial de Hipersensibilidad Auditiva
                           </h3>
                           <p className="text-[10px] text-slate-400 leading-relaxed">
-                            Los niños con espectro autista (TEA) y déficit de atención con hiperactividad (TDAH) pueden experimentar sobrecarga o shock sensorial ante sonidos agudos o imprevistos. Configura el entorno auditivo ideal aquí.
+                            Ajusta el sonido de la aplicación según las preferencias del niño. Puedes elegir silencio, tonos suaves o un sonido de fondo y probar el volumen.
                           </p>
 
                           {/* Sound Mode Selector */}
@@ -3429,6 +3537,7 @@ export default function ImportedApp() {
                               ].map(mode => (
                                 <button
                                   key={mode.id}
+                                  aria-pressed={sensoryAudioMode === mode.id}
                                   onClick={() => {
                                     playClickSound();
                                     setSensoryAudioMode(mode.id as any);
@@ -3455,6 +3564,7 @@ export default function ImportedApp() {
                             </div>
                             <input
                               type="range"
+                              aria-label="Volumen de la aplicación"
                               min="0"
                               max="100"
                               value={audioVolume}
@@ -3465,20 +3575,23 @@ export default function ImportedApp() {
                               }}
                               className="w-full h-1.5 bg-slate-900 rounded-lg appearance-none cursor-pointer accent-blue-500"
                             />
-                            <p className="text-[8.5px] text-slate-500">Un volumen bajo y predecible previene el estrés de anticipación auditiva.</p>
+                            <p className="text-[8.5px] text-slate-500">Prueba un nivel cómodo antes de usar la app con el niño.</p>
                           </div>
 
                           {/* Lowpass Filter Switch */}
                           <div className="flex items-center justify-between p-3 bg-slate-900/60 border border-slate-850 rounded-xl pt-2 border-t border-slate-900">
                             <div className="space-y-0.5 text-left max-w-[80%]">
                               <label className="text-[10px] text-white font-extrabold flex items-center gap-1">
-                                🛡️ Filtro de Hipersensibilidad (Paso Bajo)
+                                🛡️ Filtro de tonos agudos
                               </label>
                               <p className="text-[9px] text-slate-400 leading-tight">
-                                Transpone y recorta automáticamente cualquier frecuencia aguda para convertirla en tonos de baja frecuencia calmantes.
+                                Suaviza los tonos generados por la app. No modifica sonidos de otras aplicaciones ni del entorno.
                               </p>
                             </div>
                             <button
+                              type="button"
+                              aria-label="Filtro de tonos agudos"
+                              aria-pressed={audioLowpass}
                               onClick={() => {
                                 playClickSound();
                                 const newVal = !audioLowpass;
@@ -3577,7 +3690,7 @@ export default function ImportedApp() {
                                 <div className="text-[7.5px] text-slate-500">Estrellas Recogidas</div>
                               </div>
                               <div className="bg-slate-50 border border-slate-200 p-2 rounded-lg text-center">
-                                <div className="text-[14px] font-black text-blue-600">{completedRoutineTasks.length} / {ROUTINE_TASK_COUNT}</div>
+                                <div className="text-[14px] font-black text-blue-600">{completedRoutineCount} / {allRoutineTasks.length}</div>
                                 <div className="text-[7.5px] text-slate-500">Tareas marcadas</div>
                               </div>
                               <div className="bg-slate-50 border border-slate-200 p-2 rounded-lg text-center">
